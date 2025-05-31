@@ -40,6 +40,17 @@ sudo mkdir -p /usr/local/cargo/registry
 sudo chown -R vscode:rustlang /usr/local/cargo/registry || sudo chown -R vscode:vscode /usr/local/cargo/registry
 sudo chmod -R 775 /usr/local/cargo/registry
 
+# Setup cache directories with proper permissions
+echo "🗂️  Setting up cache directories..."
+sudo mkdir -p /usr/local/cargo/git
+sudo chown -R vscode:rustlang /usr/local/cargo/git || sudo chown -R vscode:vscode /usr/local/cargo/git
+sudo chmod -R 775 /usr/local/cargo/git
+
+# Ensure target directory has correct permissions
+mkdir -p /workspaces/sip-edge-rs/target
+chown -R vscode:vscode /workspaces/sip-edge-rs/target || true
+chmod -R 755 /workspaces/sip-edge-rs/target
+
 # Install cargo tools for development
 echo "📦 Installing cargo tools..."
 cargo install \

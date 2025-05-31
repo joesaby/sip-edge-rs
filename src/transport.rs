@@ -627,7 +627,7 @@ mod tests {
     #[tokio::test]
     async fn test_transport_creation() {
         let config = TransportConfig::default();
-        let (transport, mut event_rx) = SipTransport::new(config);
+        let (_transport, mut event_rx) = SipTransport::new(config);
 
         // Should be able to create transport
         assert!(event_rx.try_recv().is_err()); // No events yet
