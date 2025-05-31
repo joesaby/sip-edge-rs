@@ -1,9 +1,9 @@
 // main.rs - High-performance SIP router example
 
 use anyhow::Result;
-use sip_parser::{
-    transport::{SipTransport, TransportConfig, TransportEvent, TransportProtocol},
+use sip_edge_rs::{
     security::SecurityConfig,
+    transport::{SipTransport, TransportConfig, TransportEvent, TransportProtocol},
     utils::{self, HeaderBuilder},
     SipMessage, SipMethod,
 };
@@ -40,7 +40,11 @@ impl SipRouter {
 
     async fn handle_event(&self, event: TransportEvent) -> Result<()> {
         match event {
-            TransportEvent::MessageReceived { message, source, transport } => {
+            TransportEvent::MessageReceived {
+                message,
+                source,
+                transport,
+            } => {
                 info!("Received message from {} via {:?}", source, transport);
                 self.route_message(message, source, transport).await?;
             }
@@ -64,24 +68,27 @@ impl SipRouter {
         source_transport: TransportProtocol,
     ) -> Result<()> {
         match &message {
-            SipMessage::Request(request) => {
-                match &request.method {
-                    SipMethod::Register => {
-                        self.handle_register(message, source, source_transport).await?;
-                    }
-                    SipMethod::Invite => {
-                        self.handle_invite(message, source, source_transport).await?;
-                    }
-                    SipMethod::Options => {
-                        self.handle_options(message, source, source_transport).await?;
-                    }
-                    _ => {
-                        self.forward_request(message, source, source_transport).await?;
-                    }
+            SipMessage::Request(request) => match &request.method {
+                SipMethod::Register => {
+                    self.handle_register(message, source, source_transport)
+                        .await?;
                 }
-            }
+                SipMethod::Invite => {
+                    self.handle_invite(message, source, source_transport)
+                        .await?;
+                }
+                SipMethod::Options => {
+                    self.handle_options(message, source, source_transport)
+                        .await?;
+                }
+                _ => {
+                    self.forward_request(message, source, source_transport)
+                        .await?;
+                }
+            },
             SipMessage::Response(_) => {
-                self.forward_response(message, source, source_transport).await?;
+                self.forward_response(message, source, source_transport)
+                    .await?;
             }
         }
         Ok(())
@@ -101,30 +108,26 @@ impl SipRouter {
                     let mut registrations = self.registrations.write().await;
                     registrations.insert(uri.to_string(), source);
                     info!("Registered {} at {}", uri, source);
-                    
+
                     // Send 200 OK response
                     let response = utils::build_response_from_request(request, 200, "OK");
-                    self.transport.send_message(
-                        SipMessage::Response(response),
-                        source,
-                        source_transport,
-                    ).await?;
-                    
+                    self.transport
+                        .send_message(SipMessage::Response(response), source, source_transport)
+                        .await?;
+
                     return Ok(());
                 }
             }
         }
-        
+
         // Send error response
         if let SipMessage::Request(request) = &message {
             let response = utils::build_response_from_request(request, 400, "Bad Request");
-            self.transport.send_message(
-                SipMessage::Response(response),
-                source,
-                source_transport,
-            ).await?;
+            self.transport
+                .send_message(SipMessage::Response(response), source, source_transport)
+                .await?;
         }
-        
+
         Ok(())
     }
 
@@ -137,46 +140,46 @@ impl SipRouter {
         // Send 100 Trying immediately
         if let SipMessage::Request(request) = &message {
             let trying = utils::build_response_from_request(request, 100, "Trying");
-            self.transport.send_message(
-                SipMessage::Response(trying),
-                source,
-                source_transport,
-            ).await?;
+            self.transport
+                .send_message(SipMessage::Response(trying), source, source_transport)
+                .await?;
         }
-        
-        // Look up destination
-        if let Some(to) = utils::get_header(&message, "to") {
+
+        // Look up destination - extract URI first to avoid borrowing conflicts
+        let destination_info = if let Some(to) = utils::get_header(&message, "to") {
             if let Some(uri) = utils::parse_uri_from_header(to) {
                 let registrations = self.registrations.read().await;
-                if let Some(&destination) = registrations.get(uri) {
-                    // Add Via header for routing responses back
-                    let branch = utils::generate_branch();
-                    let via = utils::format_via_address(&source, "UDP", &branch);
-                    utils::add_header(&mut message, "via", via);
-                    
-                    // Forward the INVITE
-                    info!("Forwarding INVITE to {} at {}", uri, destination);
-                    self.transport.send_message(
-                        message,
-                        destination,
-                        TransportProtocol::Udp,
-                    ).await?;
-                    
-                    return Ok(());
-                }
+                registrations.get(uri).map(|&dest| (uri.to_string(), dest))
+            } else {
+                None
             }
+        } else {
+            None
+        };
+
+        if let Some((uri, destination)) = destination_info {
+            // Add Via header for routing responses back
+            let branch = utils::generate_branch();
+            let via = utils::format_via_address(&source, "UDP", &branch);
+            utils::add_header(&mut message, "via", via);
+
+            // Forward the INVITE
+            info!("Forwarding INVITE to {} at {}", uri, destination);
+            self.transport
+                .send_message(message, destination, TransportProtocol::Udp)
+                .await?;
+
+            return Ok(());
         }
-        
+
         // User not found
         if let SipMessage::Request(request) = &message {
             let response = utils::build_response_from_request(request, 404, "Not Found");
-            self.transport.send_message(
-                SipMessage::Response(response),
-                source,
-                source_transport,
-            ).await?;
+            self.transport
+                .send_message(SipMessage::Response(response), source, source_transport)
+                .await?;
         }
-        
+
         Ok(())
     }
 
@@ -188,25 +191,20 @@ impl SipRouter {
     ) -> Result<()> {
         if let SipMessage::Request(request) = &message {
             // Build response with supported methods
-            let mut response = utils::build_response_from_request(request, 200, "OK");
+            let response = utils::build_response_from_request(request, 200, "OK");
+            let mut response_msg = SipMessage::Response(response);
             utils::add_header(
-                &mut SipMessage::Response(response.clone()),
+                &mut response_msg,
                 "allow",
                 "INVITE, ACK, CANCEL, BYE, OPTIONS, REGISTER, MESSAGE".to_string(),
             );
-            utils::add_header(
-                &mut SipMessage::Response(response.clone()),
-                "accept",
-                "application/sdp".to_string(),
-            );
-            
-            self.transport.send_message(
-                SipMessage::Response(response),
-                source,
-                source_transport,
-            ).await?;
+            utils::add_header(&mut response_msg, "accept", "application/sdp".to_string());
+
+            self.transport
+                .send_message(response_msg, source, source_transport)
+                .await?;
         }
-        
+
         Ok(())
     }
 
@@ -222,56 +220,47 @@ impl SipRouter {
                 if value == 0 {
                     // Too many hops
                     if let SipMessage::Request(request) = &message {
-                        let response = utils::build_response_from_request(
-                            request,
-                            483,
-                            "Too Many Hops"
-                        );
-                        self.transport.send_message(
-                            SipMessage::Response(response),
-                            source,
-                            source_transport,
-                        ).await?;
+                        let response =
+                            utils::build_response_from_request(request, 483, "Too Many Hops");
+                        self.transport
+                            .send_message(SipMessage::Response(response), source, source_transport)
+                            .await?;
                         return Ok(());
                     }
                 }
                 utils::set_header(&mut message, "max-forwards", (value - 1).to_string());
             }
         }
-        
+
         // Add Via header
         let branch = utils::generate_branch();
         let via = utils::format_via_address(&source, "UDP", &branch);
         utils::add_header(&mut message, "via", via);
-        
+
         // Route based on Request-URI
         if let SipMessage::Request(request) = &message {
             let uri_str = request.uri.to_string();
             let routes = self.routes.read().await;
-            
+
             // Find best route
             if let Some(route_entries) = routes.get(&uri_str) {
                 if let Some(route) = route_entries.iter().min_by_key(|r| r.priority) {
-                    self.transport.send_message(
-                        message,
-                        route.destination,
-                        route.transport,
-                    ).await?;
+                    self.transport
+                        .send_message(message, route.destination, route.transport)
+                        .await?;
                     return Ok(());
                 }
             }
         }
-        
+
         // No route found
         if let SipMessage::Request(request) = &message {
             let response = utils::build_response_from_request(request, 404, "Not Found");
-            self.transport.send_message(
-                SipMessage::Response(response),
-                source,
-                source_transport,
-            ).await?;
+            self.transport
+                .send_message(SipMessage::Response(response), source, source_transport)
+                .await?;
         }
-        
+
         Ok(())
     }
 
@@ -285,28 +274,37 @@ impl SipRouter {
         if let Some(via_values) = message.headers_mut().get_mut("via") {
             if !via_values.is_empty() {
                 let top_via = via_values.remove(0);
-                
+
                 // Parse Via header to extract destination
                 // In a real implementation, you'd maintain transaction state
                 // For now, we'll just log
                 debug!("Routing response based on Via: {}", top_via);
-                
+
                 // Here you would look up the transaction and route accordingly
             }
         }
-        
+
         Ok(())
     }
 
-    async fn add_static_route(&self, uri: String, destination: SocketAddr, transport: TransportProtocol) {
+    async fn add_static_route(
+        &self,
+        uri: String,
+        destination: SocketAddr,
+        transport: TransportProtocol,
+    ) {
         let mut routes = self.routes.write().await;
         let entry = RouteEntry {
             destination,
             transport,
             priority: 10,
         };
+        let uri_clone = uri.clone();
         routes.entry(uri).or_insert_with(Vec::new).push(entry);
-        info!("Added route: {} -> {} via {:?}", uri, destination, transport);
+        info!(
+            "Added route: {} -> {} via {:?}",
+            uri_clone, destination, transport
+        );
     }
 }
 
@@ -325,7 +323,7 @@ async fn main() -> Result<()> {
 
     // Configure transport
     let mut transport_config = TransportConfig::default();
-    
+
     // Configure security
     transport_config.security_config = SecurityConfig {
         detect_sql_injection: true,
@@ -348,7 +346,7 @@ async fn main() -> Result<()> {
     if let Ok(tls_addr) = std::env::var("SIP_TLS_ADDR") {
         transport_config.tls_listen_addr = Some(tls_addr.parse()?);
     }
-    
+
     // TLS configuration
     if let Ok(cert_path) = std::env::var("SIP_TLS_CERT") {
         transport_config.tls_cert_path = Some(cert_path);
@@ -358,16 +356,22 @@ async fn main() -> Result<()> {
     }
 
     // Create transport and router
+    let tcp_addr = transport_config.tcp_listen_addr;
+    let udp_addr = transport_config.udp_listen_addr;
+    let tls_addr = transport_config.tls_listen_addr;
+
     let (transport, mut event_rx) = SipTransport::new(transport_config);
     let transport = Arc::new(transport);
     let router = Arc::new(SipRouter::new(transport.clone()));
 
     // Add some example static routes
-    router.add_static_route(
-        "sip:test@example.com".to_string(),
-        "127.0.0.1:5062".parse()?,
-        TransportProtocol::Udp,
-    ).await;
+    router
+        .add_static_route(
+            "sip:test@example.com".to_string(),
+            "127.0.0.1:5062".parse()?,
+            TransportProtocol::Udp,
+        )
+        .await;
 
     // Start transport listeners
     let transport_handle = {
@@ -392,9 +396,9 @@ async fn main() -> Result<()> {
     };
 
     info!("SIP Router started successfully");
-    info!("TCP: {}", transport_config.tcp_listen_addr);
-    info!("UDP: {}", transport_config.udp_listen_addr);
-    if let Some(tls_addr) = transport_config.tls_listen_addr {
+    info!("TCP: {}", tcp_addr);
+    info!("UDP: {}", udp_addr);
+    if let Some(tls_addr) = tls_addr {
         info!("TLS: {}", tls_addr);
     }
 

@@ -34,6 +34,12 @@ echo "🦀 Installing Rust toolchain components..."
 rustup component add clippy rustfmt
 rustup target add x86_64-unknown-linux-musl
 
+# Fix cargo registry permissions for the vscode user
+echo "🔧 Fixing cargo registry permissions..."
+sudo mkdir -p /usr/local/cargo/registry
+sudo chown -R vscode:rustlang /usr/local/cargo/registry || sudo chown -R vscode:vscode /usr/local/cargo/registry
+sudo chmod -R 775 /usr/local/cargo/registry
+
 # Install cargo tools for development
 echo "📦 Installing cargo tools..."
 cargo install \

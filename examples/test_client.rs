@@ -1,7 +1,7 @@
 // examples/test_client.rs - Test client for SIP Router
 
 use anyhow::Result;
-use sip_parser::{
+use sip_edge_rs::{
     transport::{TransportProtocol},
     utils::{self, HeaderBuilder},
     SipMessage, SipMethod, SipRequest, SipUri,

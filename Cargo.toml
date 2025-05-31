@@ -10,11 +10,14 @@ license = "MIT OR Apache-2.0"
 # Async runtime
 tokio = { version = "1.36", features = ["full"] }
 tokio-util = { version = "0.7", features = ["codec"] }
+tokio-stream = "0.1"
+futures = "0.3"
 
 # TLS support
-tokio-rustls = "0.25"
-rustls = "0.22"
-rustls-pemfile = "2.0"
+tokio-rustls = "0.24"
+rustls = "0.21"
+rustls-pemfile = "1.0"
+webpki-roots = "0.25"
 
 # Parser utilities
 nom = "7.1"
@@ -38,6 +41,9 @@ url = "2.5"
 # Performance
 ahash = "0.8"
 parking_lot = "0.12"
+
+# Utilities
+rand = "0.8"
 
 [dev-dependencies]
 criterion = "0.5"
