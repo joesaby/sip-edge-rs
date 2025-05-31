@@ -1,0 +1,100 @@
+{
+	"name": "SIP Router Development",
+	"image": "mcr.microsoft.com/devcontainers/rust:1-1-bookworm",
+	
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {
+			"moby": true,
+			"azureCli": false,
+			"dockerDashComposeVersion": "v2"
+		},
+		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+			"version": "latest",
+			"helm": "latest",
+			"minikube": "latest"
+		},
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"installZsh": true,
+			"configureZshAsDefaultShell": true,
+			"installOhMyZsh": true,
+			"upgradePackages": true,
+			"username": "vscode",
+			"userUid": "automatic",
+			"userGid": "automatic"
+		}
+	},
+
+	"runArgs": [
+		"--cap-add=SYS_PTRACE",
+		"--security-opt", "seccomp=unconfined"
+	],
+
+	"mounts": [
+		"source=sip-edge-rs-cargo-cache,target=/usr/local/cargo/registry,type=volume"
+	],
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"rust-lang.rust-analyzer",
+				"vadimcn.vscode-lldb",
+				"tamasfe.even-better-toml",
+				"serayuzgur.crates",
+				"ms-azuretools.vscode-docker",
+				"ms-kubernetes-tools.vscode-kubernetes-tools",
+				"ms-vscode.test-adapter-converter",
+				"hbenl.vscode-test-explorer",
+				"swellaby.vscode-rust-test-adapter",
+				"bungcip.better-toml",
+				"fill-labs.dependi"
+			],
+			"settings": {
+				"rust-analyzer.checkOnSave.command": "clippy",
+				"rust-analyzer.cargo.buildScripts.enable": true,
+				"rust-analyzer.procMacro.enable": true,
+				"rust-analyzer.cargo.loadOutDirsFromCheck": true,
+				"rust-analyzer.inlayHints.enable": true,
+				"rust-analyzer.inlayHints.chainingHints": true,
+				"rust-analyzer.inlayHints.parameterHints": true,
+				"rust-analyzer.inlayHints.typeHints": true,
+				"editor.formatOnSave": true,
+				"editor.defaultFormatter": "rust-lang.rust-analyzer",
+				"files.watcherExclude": {
+					"**/target/**": true
+				},
+				"terminal.integrated.defaultProfile.linux": "zsh"
+			}
+		}
+	},
+
+	"postCreateCommand": "bash .devcontainer/setup.sh",
+
+	"forwardPorts": [
+		5060,
+		5061,
+		8080
+	],
+
+	"portsAttributes": {
+		"5060": {
+			"label": "SIP UDP/TCP",
+			"protocol": "udp"
+		},
+		"5061": {
+			"label": "SIP TLS",
+			"protocol": "tcp"
+		},
+		"8080": {
+			"label": "HTTP Management",
+			"protocol": "http"
+		}
+	},
+
+	"remoteUser": "vscode",
+	
+	"containerEnv": {
+		"RUST_LOG": "debug",
+		"CARGO_TERM_COLOR": "always",
+		"RUST_BACKTRACE": "1"
+	}
+} 

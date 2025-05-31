@@ -1,0 +1,60 @@
+[package]
+name = "sip-edge-rs"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "High-performance Rust-based SIP router for cloud edge with security hardening"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.36", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+
+# TLS support
+tokio-rustls = "0.25"
+rustls = "0.22"
+rustls-pemfile = "2.0"
+
+# Parser utilities
+nom = "7.1"
+bytes = "1.5"
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Security and validation
+regex = "1.10"
+lazy_static = "1.4"
+url = "2.5"
+
+# Performance
+ahash = "0.8"
+parking_lot = "0.12"
+
+[dev-dependencies]
+criterion = "0.5"
+proptest = "1.4"
+tokio-test = "0.4"
+
+[[bench]]
+name = "parser_benchmarks"
+harness = false
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+
+[profile.dev]
+opt-level = 0
+
+[profile.test]
+opt-level = 0

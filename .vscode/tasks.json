@@ -1,0 +1,311 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "cargo build",
+            "type": "cargo",
+            "command": "build",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "cargo build (release)",
+            "type": "cargo",
+            "command": "build",
+            "args": ["--release"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "cargo run",
+            "type": "cargo",
+            "command": "run",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "cargo test",
+            "type": "cargo",
+            "command": "test",
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "cargo test (security)",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["test", "--test", "vulnerability_tests"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "cargo check",
+            "type": "cargo",
+            "command": "check",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "cargo clippy",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["clippy", "--", "-D", "warnings"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "cargo fmt",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["fmt"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "cargo bench",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["bench"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "cargo audit",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["audit"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "cargo coverage",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["tarpaulin", "--out", "Html"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "cargo watch",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["watch", "-x", "check", "-x", "test", "-x", "run"],
+            "group": "build",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated"
+            },
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "docker build",
+            "type": "shell",
+            "command": "docker",
+            "args": ["build", "-t", "sip-router", "."],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "docker run",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "run", 
+                "-p", "5060:5060/udp", 
+                "-p", "5060:5060/tcp", 
+                "-p", "5061:5061/tcp", 
+                "sip-router"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated"
+            },
+            "dependsOn": "docker build"
+        },
+        {
+            "label": "SIPp load test",
+            "type": "shell",
+            "command": "sipp",
+            "args": [
+                "-sf", 
+                ".devcontainer/sipp-scenarios/client.xml", 
+                "127.0.0.1:5060", 
+                "-m", "100", 
+                "-r", "10"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Monitor SIP traffic",
+            "type": "shell",
+            "command": "tshark",
+            "args": [
+                "-i", "any", 
+                "-f", "port 5060 or port 5061", 
+                "-Y", "sip"
+            ],
+            "group": "test",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Start monitoring stack",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f", 
+                ".devcontainer/docker-compose.dev.yml", 
+                "--profile", 
+                "monitoring", 
+                "up", 
+                "-d"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Stop monitoring stack",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f", 
+                ".devcontainer/docker-compose.dev.yml", 
+                "down", 
+                "-v"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Deploy to Kubernetes",
+            "type": "shell",
+            "command": "kubectl",
+            "args": ["apply", "-f", "k8s-deployment.yaml"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "K8s port forward",
+            "type": "shell",
+            "command": "kubectl",
+            "args": ["port-forward", "service/sip-router", "5060:5060"],
+            "group": "build",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated"
+            }
+        }
+    ]
+} 

@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  sip-edge-rs:
+    build: 
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5061:5061/tcp"
+    environment:
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=1
+    volumes:
+      - ./certs:/etc/sip-edge-rs/certs:ro
+    networks:
+      - sip-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "5060"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  sipp-client:
+    image: ctaloi/sipp:latest
+    networks:
+      - sip-net
+    volumes:
+      - ./sipp-scenarios:/sipp-scenarios:ro
+    profiles:
+      - testing
+    command: >
+      sh -c "sleep 10 && 
+             sipp -sf /sipp-scenarios/client.xml 
+             -i 0.0.0.0 
+             -p 5070 
+             sip-edge-rs:5060 
+             -m 100 
+             -r 10 
+             -rp 1000"
+
+  sipp-server:
+    image: ctaloi/sipp:latest
+    ports:
+      - "5070:5070/udp"
+    networks:
+      - sip-net
+    volumes:
+      - ./sipp-scenarios:/sipp-scenarios:ro
+    profiles:
+      - testing
+    command: >
+      sipp -sf /sipp-scenarios/server.xml 
+      -i 0.0.0.0 
+      -p 5070
+
+  # Network monitoring and debugging
+  tcpdump:
+    image: kaazing/tcpdump
+    network_mode: "service:sip-edge-rs"
+    volumes:
+      - ./captures:/tcpdump
+    profiles:
+      - debug
+    command: >
+      tcpdump -i any 
+      -w /tcpdump/sip-traffic.pcap 
+      'port 5060 or port 5061'
+
+  # Performance monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - sip-net
+    profiles:
+      - monitoring
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - sip-net
+    profiles:
+      - monitoring
+
+networks:
+  sip-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  grafana-storage: 
