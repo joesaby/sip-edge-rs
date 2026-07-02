@@ -45,6 +45,12 @@ parking_lot = "0.12"
 # Utilities
 rand = "0.8"
 
+# SDP parsing for the multi-tenant registration gateway
+sdp-rs = "0.2"
+
+# Digest authentication (RFC 2617) for SIP registration
+md5 = "0.8"
+
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.4"

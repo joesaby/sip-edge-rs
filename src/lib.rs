@@ -17,6 +17,10 @@ use std::str::FromStr;
 use thiserror::Error;
 
 pub mod codec;
+pub mod digest_auth;
+pub mod gateway;
+pub mod registration;
+pub mod sdp;
 pub mod security;
 pub mod transport;
 pub mod utils;

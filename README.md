@@ -77,13 +77,20 @@ sip-edge-rs/
 │   ├── security.rs             # Security validation and protection
 │   ├── transport.rs            # Network transport layer
 │   ├── utils.rs                # Helper functions
+│   ├── digest_auth.rs          # RFC 2617 Digest authentication
+│   ├── registration.rs         # Per-tenant REGISTER client for Cisco gateways
+│   ├── gateway.rs              # Multi-tenant registration gateway
+│   ├── sdp.rs                  # SDP inspection (built on sdp-rs)
 │   └── main.rs                 # Example router implementation
+├── config/                      # Example runtime configuration
+│   └── tenants.example.json    # Multi-tenant gateway config sample
 ├── tests/                       # Integration tests
 │   └── vulnerability_tests.rs  # Security test suite
 ├── benches/                     # Performance benchmarks
 │   └── parser_benchmarks.rs
 ├── examples/                    # Example applications
-│   └── test_client.rs          # SIP test client
+│   ├── test_client.rs          # SIP test client
+│   └── multi_tenant_gateway.rs # Multi-tenant Cisco registration gateway
 ├── docs/                        # Documentation
 │   └── arch.md                 # Architecture documentation
 ├── .devcontainer/               # VS Code dev container
@@ -96,6 +103,26 @@ sip-edge-rs/
 ├── k8s-deployment.yaml         # Kubernetes manifests
 └── CLAUDE.md                   # AI assistant context
 ```
+
+## 🏢 Multi-Tenant Cisco Registration Gateway
+
+`examples/multi_tenant_gateway.rs` registers multiple tenants as a SIP UAC against a Cisco
+registrar (CUCM/CUBE), one registration per tenant, each with its own domain and Digest
+credentials. It handles 401/407 challenges, refreshes registrations before they expire, and
+de-registers cleanly on shutdown.
+
+```bash
+# Describe your tenants (see config/tenants.example.json for the schema)
+cp config/tenants.example.json config/tenants.json
+$EDITOR config/tenants.json
+
+TENANTS_CONFIG=config/tenants.json cargo run --example multi_tenant_gateway
+```
+
+While tenants are being registered, the gateway's shared listener (the same
+`transport::SipTransport` used elsewhere in this crate) answers Cisco's OPTIONS keepalives,
+accepts local REGISTERs, and logs the codecs offered in any inbound INVITE's SDP body (via
+the `sdp` module, built on [`sdp-rs`](https://docs.rs/sdp-rs)).
 
 ## 🧪 Testing
 

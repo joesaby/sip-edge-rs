@@ -1,0 +1,30 @@
+[
+  {
+    "tenant_id": "tenant-a",
+    "registrar_host": "cube-a.example.com",
+    "registrar_port": 5060,
+    "transport": "udp",
+    "domain": "tenant-a.example.com",
+    "aor_user": "trunk-a",
+    "auth_user": "trunk-a",
+    "auth_password": "change-me-a",
+    "advertised_host": "203.0.113.10",
+    "advertised_port": 5060,
+    "expires": 3600,
+    "retry_interval_secs": 30
+  },
+  {
+    "tenant_id": "tenant-b",
+    "registrar_host": "cube-b.example.com",
+    "registrar_port": 5060,
+    "transport": "tcp",
+    "domain": "tenant-b.example.com",
+    "aor_user": "trunk-b",
+    "auth_user": "trunk-b",
+    "auth_password": "change-me-b",
+    "advertised_host": "203.0.113.10",
+    "advertised_port": 5060,
+    "expires": 3600,
+    "retry_interval_secs": 30
+  }
+]
